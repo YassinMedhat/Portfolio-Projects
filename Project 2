@@ -120,7 +120,37 @@ Group By SoldAsVacant
 
 -- Remove Duplicates
 
+SELECT *
+FROM NashvilleData
 
+
+With RowNumCTE AS (
+SELECT *, 
+	ROW_NUMBER() OVER (
+	Partition By ParcelID,
+				PropertyAddress,
+				SalePrice,
+				SaleDate,
+				LegalReference
+				ORDER BY 
+				UniqueID
+				) row_num
+
+From NashvilleData
+)
+Select *
+FRom RowNumCTE
+WHERE ROW_NUM > 1
+order by propertyaddress
+
+
+-- Delete Unused Columns
+
+select *
+from NashvilleData
+
+ALTER TABLE nashvilledata
+DROP COLUMN OwnerAddress, TaxDistrict, PropertyAddress
 
 
 
