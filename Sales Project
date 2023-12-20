@@ -1,0 +1,113 @@
+---Inspecting Data
+select * from sales_data_sample
+---Checking Unique Values
+select Distinct PRODUCTLINE from sales_data_sample 
+select Distinct STATUS from sales_data_sample 
+select Distinct PHONE from sales_data_sample 
+select Distinct DEALSIZE from sales_data_sample 
+select Distinct TERRITORY from sales_data_sample 
+select Distinct YEAR_ID from sales_data_sample 
+
+select distinct month_id from sales_data_sample
+where year_id = 2005
+order by month_id
+
+--Analysis 
+--Grouping Sales By Product Line
+Select productline, sum(sales) as salesperproductline
+From sales_data_sample
+Group by productline
+order by 2 desc
+
+--Sales Per Year
+select year_id, sum(sales) as salesperyear
+from sales_data_sample
+group by year_id
+order by 2 desc
+
+--Sales Per Dealsize
+select DEALSIZE, sum(sales) as salespersize
+from sales_data_sample
+group by DEALSIZE
+order by 2 desc
+
+--Sales Per Month
+select month_id, sum(sales) as salespermonth, count(ordernumber) as frequency
+from sales_data_sample
+where YEAR_ID = 2003 --changing years to compare sales
+group by month_id
+order by 2 desc
+
+-- November has the highest sales in both years, what product do we sell the most in November?	
+select month_id, productline, sum(sales) as salesperproductline, count(productline) as frequency
+from sales_data_sample
+where month_id = 11 and year_id = 2004
+group by month_id, productline
+order by 3 desc
+
+--Our top customers (RFM Analysis) 
+
+with rfm as
+(
+select CUSTOMERNAME, 
+CONCAT(CONTACTFIRSTNAME, ' ', CONTACTLASTNAME) as customerfullname, 
+SUM(SALES) as sales, 
+AVG(SALES) as averagesales,
+COUNT(ordernumber) as frequency,
+max(orderdate) as last_order_date,
+(select max(orderdate) from sales_data_sample) maxorderdate,
+datediff(DD, max(orderdate), (select max(orderdate) from sales_data_sample)) as recency
+from sales_data_sample 
+group by CUSTOMERNAME,  CONCAT(CONTACTFIRSTNAME, ' ', CONTACTLASTNAME)
+
+),
+rfmcalc as 
+(
+select *, 
+NTILE(4) OVER (order by recency desc) rfm_recency,
+NTILE(4) OVER (order by frequency) rfm_frequency,
+NTILE(4) OVER (order by sales) rfm_monetary
+from rfm 
+),
+rfmcalc2 as (
+select *, (rfm_recency + rfm_frequency + rfm_monetary) as rfm_cell,
+cast(rfm_recency as varchar) + cast(rfm_frequency as varchar) + cast(rfm_monetary as varchar) as rfm_cell_string
+FROM rfmcalc
+)
+
+select CUSTOMERNAME, rfm_recency, rfm_frequency, rfm_monetary, 
+CASE
+			when rfm_cell_string in (111, 112, 121, 122, 123, 132, 211, 212 , 114, 141,221) then 'lost_customers'
+			when rfm_cell_string in (133, 134, 143, 244, 334, 343, 344,234,144) then 'slipping away, cannot lose' --Big spenders who havent purchased lately
+			when rfm_cell_string in (311, 411, 331,421,412,423) then 'new customers'
+			when rfm_cell_string in (222, 223, 233, 322, 232) then 'potential churners'
+			when rfm_cell_string in (323, 333, 321, 422, 332, 432) then 'active' --Customers who buy alot but at low price
+			when rfm_cell_string in (433, 434, 443, 444) then 'loyal'
+		end rfm_segment
+FROM rfmcalc2
+
+-- Checking products that sell together
+--select sds.productcode, sds.productline, sds.ordernumber, sds.orderdate,  sds2.productcode, sds2.productline, sds2.ordernumber, sds2.orderdate
+--from sales_data_sample sds
+--join sales_data_sample sds2
+--on sds.ORDERNUMBER = sds2.ORDERNUMBER
+--where sds.ordernumber = sds2.ordernumber
+select distinct ordernumber, stuff (
+(select ',' + PRODUCTCODE
+from sales_data_sample P
+where ordernumber in (
+select ordernumber
+from (
+Select ordernumber, count(*) as shippedorders
+FROM sales_data_sample
+where status = 'Shipped'
+group by ordernumber
+) m
+where shippedorders = 3
+)
+and p.ORDERNUMBER = s.ORDERNUMBER
+for xml path (''))
+ , 1,1,('')) as productcodes
+ from sales_data_sample s
+ order by 2 desc
+
