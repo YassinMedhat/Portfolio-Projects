@@ -1,0 +1,75 @@
+--What is the total number of parts per theme 
+select * from themes
+select * from sets
+
+--select t.id, t.name, count(s.num_parts) as numofparts
+--order by numofparts desc
+
+select * from analytics_main
+
+select theme_name, sum(num_parts) as totalnumofparts
+from analytics_main
+group by theme_name
+order by totalnumofparts desc
+
+--Number of parts per year
+select year, sum(num_parts) as totalnumofparts
+from analytics_main
+group by year
+order by totalnumofparts desc
+
+--How many sets in each Century
+select century,count(set_num) as totalnumofparts
+from analytics_main
+group by century
+order by totalnumofparts desc
+
+--What percentage of sets released in 21st century were trains themed
+select * from analytics_main
+
+with percofsets as (
+select count(set_num) as numofsets, century, theme_name
+from analytics_main
+where century = '21st_century' 
+group by century, theme_name
+)
+select sum(numofsets), sum(percofsets)
+from(
+select century, theme_name, numofsets, sum(numofsets) over() as total, cast(1.00 * numofsets/sum(numofsets) over() as decimal(5,4)) * 100 as percofsets
+from percofsets
+--where theme_name like '%train%'
+--order by 3 desc
+) kkl
+where kkl.theme_name like '%train%'
+
+
+--What are the most popular theme by year in terms of sets released in the 21st century
+select * from analytics_main
+
+select totalnumsets, year, theme_name
+from(
+select count(set_num) totalnumsets, year, theme_name, row_number() over (partition by year order by count(set_num) desc) as rownum
+from analytics_main
+where century = '21st_century' 
+group by year, theme_name
+) yearsep
+where rownum = 1
+order by year desc
+
+--most produced color of lego ever in terms of quantity of parts
+select * from analytics_main
+
+select color_name, sum(quantity) as totalquantity
+from(
+select inv.color_id, inv.inventory_id, inv.part_num, inv.is_spare, cast(inv.quantity as numeric) quantity, c.name as color_name, c.rgb, p.name as part_name, 
+p.part_material, pc.name as category_name
+from inventory_parts inv
+inner join colors c
+	on inv.color_id = c.id
+inner join parts p
+	on inv.part_num = p.part_num
+inner join part_categories pc
+	on part_cat_id = pc.id
+	)main
+group by color_name
+order by totalquantity desc
