@@ -86,28 +86,3 @@ CASE
 		end rfm_segment
 FROM rfmcalc2
 
--- Checking products that sell together
---select sds.productcode, sds.productline, sds.ordernumber, sds.orderdate,  sds2.productcode, sds2.productline, sds2.ordernumber, sds2.orderdate
---from sales_data_sample sds
---join sales_data_sample sds2
---on sds.ORDERNUMBER = sds2.ORDERNUMBER
---where sds.ordernumber = sds2.ordernumber
-select distinct ordernumber, stuff (
-(select ',' + PRODUCTCODE
-from sales_data_sample P
-where ordernumber in (
-select ordernumber
-from (
-Select ordernumber, count(*) as shippedorders
-FROM sales_data_sample
-where status = 'Shipped'
-group by ordernumber
-) m
-where shippedorders = 3
-)
-and p.ORDERNUMBER = s.ORDERNUMBER
-for xml path (''))
- , 1,1,('')) as productcodes
- from sales_data_sample s
- order by 2 desc
-
