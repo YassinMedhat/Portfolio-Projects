@@ -1,0 +1,197 @@
+select * 
+ FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+ 
+ --Checking for Null Values
+SELECT *
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+WHERE Invoice_ID IS NULL OR Branch IS NULL OR City IS NULL OR Customer_type IS NULL OR Gender IS NULL OR Product_line IS NULL OR Unit_price IS NULL 
+OR Quantity IS NULL OR Tax_5 IS NULL OR Total IS NULL OR Date IS NULL OR Time IS NULL OR Payment IS NULL OR cogs IS NULL OR gross_margin_percentage IS NULL 
+OR gross_income IS NULL OR Rating IS NULL
+
+--Feature Engineering 
+SELECT CAST(time as time) as time_only,
+case when CAST(time as time) between '00:00:00' AND '12:00:00' Then 'Morning'
+when  CAST(time as time) between '12:01:00' and '16:00:00' Then 'Afternoon'
+ELSE 'Evening'
+END as day_today
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+--Adding the time of day to the table
+ALTER TABLE [WalmartSales].[dbo].[WalmartSalesData.csv] ADD time_of_day VARCHAR(20);
+UPDATE [WalmartSales].[dbo].[WalmartSalesData.csv] SET time_of_day = (case when CAST(time as time) between '00:00:00' AND '12:00:00' Then 'Morning'
+when  CAST(time as time) between '12:01:00' and '16:00:00' Then 'Afternoon'
+ELSE 'Evening' END)
+--What day did the sale occur?
+select date, DATENAME(weekday,date) as day_of_sale
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+
+--Adding the day column to the table
+ALTER TABLE [WalmartSales].[dbo].[WalmartSalesData.csv] ADD day_name varchar(10)
+UPDATE [WalmartSales].[dbo].[WalmartSalesData.csv] SET day_name = DATENAME(weekday, date)
+
+
+--What was the month?
+select date, DATENAME(month,date) as month_of_sale
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+
+--Adding month column 
+ALTER TABLE [WalmartSales].[dbo].[WalmartSalesData.csv] ADD month_name varchar(10)
+UPDATE [WalmartSales].[dbo].[WalmartSalesData.csv] SET month_name = DATENAME(month,date)
+
+
+
+------Generic Questions------
+select *
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+--How many unique cities in the dataset?
+select distinct city
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+--Which city does each branch belong to?
+select distinct branch, city
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]	
+
+--Products--
+--How many unique products does the dataset have?
+select distinct product_line
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+
+--What is the most common payment method
+select payment, count(payment) as no_used
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by payment
+order by no_used desc
+
+--What is the most selling product line?
+Select Product_line, Count(*) as no_of_purchases
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by product_line
+order by no_of_purchases desc
+
+--Total revenue by month
+select month_name, sum(total) as total_revenue
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by month_name
+order by total_revenue desc
+
+--What month had largest cogs?
+select month_name, sum(cogs) as total_cogs
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by month_name
+order by total_cogs desc
+
+--What product line had the highest revenue
+select product_line, sum(total) as total_revenue
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by product_line
+order by total_revenue desc
+
+--What city had largest revenue
+select branch, city, sum(total) as total_revenue
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by city,branch
+order by total_revenue desc
+
+--What product line had largest VAT
+select product_line, avg(tax_5) as total_vat
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by product_line
+order by total_vat desc
+
+--Which branch sold more products than the average products sold
+select branch,
+sum(cast (quantity as int)) as qty
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by branch
+having sum(cast (quantity as int)) > (select avg(cast(quantity as int)) FROM [WalmartSales].[dbo].[WalmartSalesData.csv])
+
+--Most common product line by gender
+select product_line, gender, count(*) as total
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by product_line, gender
+order by total desc
+
+--What is the average rating of each product line
+select product_line, avg(rating) as average_rating
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by product_line
+order by average_rating desc
+
+--Sales--
+--Sales made in each time of the day per weekday
+select time_of_day,count(*) as total_sales
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by time_of_day
+order by total_sales desc
+
+--Which of the customer types bring the most revenue?
+select customer_type, sum(total) as total_revenue
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by customer_type
+order by total_revenue desc
+
+--Which city has the largest VAT
+select city, avg(tax_5) as total_VAT
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by city
+order by total_vat desc
+
+--Which customer type faced the most VAT
+select customer_type, avg(tax_5) as total_VAT
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by customer_type
+order by total_vat desc
+
+--Customer--
+--Number of unique customer types in dataset
+select distinct customer_type
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+
+--Unique payment methods
+select distinct payment
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+
+--What is the common customer type
+select customer_type, count(*) as total_customers
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by customer_type
+order by total_customers desc
+
+--What is the common gender
+select gender, count(*) as total_customers
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by gender
+order by total_customers desc
+
+--Gender distribution per branch
+select gender, count(*) as total_customers
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+where branch='C'
+group by gender
+
+--Which time of day do customers give the most rating
+select time_of_day, avg(rating) as total_ratings
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by time_of_day
+order by total_ratings desc
+
+--Which time of day do customers give the most rating per branch
+select time_of_day, avg(rating) as total_ratings
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+where branch='C'
+group by time_of_day
+order by total_ratings desc
+
+--Which day of the week has the best average rating
+select day_name, avg(rating) as average_rating
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+group by day_name
+order by average_rating desc
+
+--Which day of the week has the best average rating per branch
+select day_name, avg(rating) as average_rating
+FROM [WalmartSales].[dbo].[WalmartSalesData.csv]
+where branch ='C'
+group by day_name
+order by average_rating desc
+
+
+
