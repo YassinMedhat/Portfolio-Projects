@@ -1,0 +1,158 @@
+select * from [Human Resources]
+
+--Checking date types
+SELECT 
+    COLUMN_NAME,
+    DATA_TYPE,
+    CHARACTER_MAXIMUM_LENGTH
+FROM 
+    INFORMATION_SCHEMA.COLUMNS
+WHERE 
+    TABLE_NAME = 'Human Resources';
+
+--Fixing birthdate column
+select birthdate,convert(date,cast(birthdate as date), 101) as birthdate_fixed
+from [Human Resources]
+
+ALTER TABLE [Human Resources] ALTER COLUMN birthdate Date
+
+UPDATE [Human Resources] SET birthdate = convert(date,birthdate, 101)
+
+--Fixing hiredate column
+select hire_date,convert(date,cast(hire_date as date), 101) as hiredate_fixed
+from [Human Resources]
+
+ALTER TABLE [Human Resources] ALTER COLUMN hire_date Date
+
+UPDATE [Human Resources] SET hire_date = convert(date,hire_date, 101)
+
+
+--Fixing termdate column
+select cast(termdatefix as date) as termdatefinal
+from (
+SELECT termdate, substring(termdate,1,10) as termdatefix
+from [Human Resources]
+where termdate is not null
+) tbl
+
+UPDATE [Human Resources] SET termdate = substring(termdate,1,10)
+
+ALTER TABLE [Human Resources] ALTER COLUMN termdate Date
+
+--Adding an age column
+select birthdate, datediff(year,birthdate,GETDATE())
+from [Human Resources]
+
+ALTER TABLE [Human Resources] ADD age int
+
+UPDATE [Human Resources] SET age = datediff(year,birthdate,GETDATE())
+
+select min(age), max(age)
+from [Human Resources]
+
+-- Questions 
+-- 1. What is the gender breakdown of employees in the company
+select gender, count(gender) as total_employees
+from [Human Resources]
+where termdate is null and age >=18
+group by gender
+order by total_employees desc
+
+-- 2. What is the race breakdown of employees in the company
+select race, count(race) as total_employees
+from [Human Resources]
+where termdate is null and age >=18
+group by race 
+order by total_employees desc
+
+-- 3. Employee count by department
+select department, count(*) as total_employees
+from [Human Resources]
+where termdate is null and age >=18
+group by department 
+order by total_employees desc
+
+-- 4. Age count
+select min(age) as youngest, max(age) as oldest
+from [Human Resources]
+where termdate is null and age >=18
+
+select 
+case when age >= 18 and age <= 24 THEN '18-24'
+	 when age >= 25 and age <= 34 THEN '25-34'
+	 when age >= 35 and age <= 44 THEN '35-44'
+	 when age >= 45 and age <= 54 THEN '45-54'
+	 when age >= 55 and age <= 64 THEN '55-64'
+	 else '65' end as age_group,
+	 count(*) as total_employees
+from [Human Resources]
+group by case when age >= 18 and age <= 24 THEN '18-24'
+	 when age >= 25 and age <= 34 THEN '25-34'
+	 when age >= 35 and age <= 44 THEN '35-44'
+	 when age >= 45 and age <= 54 THEN '45-54'
+	 when age >= 55 and age <= 64 THEN '55-64'
+	 else '65' end 
+
+--Average length of employment of employment for employees who have been terminated
+SELECT avg(datediff(day,hire_date, termdate))/365
+from [Human Resources]
+WHERE termdate <= GETDATE() AND age >= 18 AND termdate is not null
+
+--Gender distribution across departments
+select gender, department, count(*) as total_employees
+from [Human Resources]
+where termdate is null and age >=18
+group by gender, department, jobtitle
+order by total_employees desc
+
+--Distribution of job titles
+select jobtitle, count(*) as total_employees
+from [Human Resources]
+where termdate is null and age >=18
+group by jobtitle 
+order by jobtitle desc
+
+-- Employees by location
+select location, count(*) as total_employees
+from [Human Resources]
+where termdate is null and age >=18
+group by location 
+order by total_employees desc
+
+--Which department has the highest turnover rate
+select department, 100*sum(emp_status)/count(emp_status) as turnover_rate
+from(
+select department,
+case when termdate is not null and termdate<= GETDATE() then 1 else 0 end as emp_status
+from [Human Resources]
+) tbl
+group by department
+order by turnover_rate desc
+
+--Distribution across locations by state
+select location_state, count(*) as total_employees
+from [Human Resources]
+where termdate is null and age >=18
+group by location_state
+order by total_employees desc
+
+--Employees count over time based on hire and term dates
+select year_hired,
+count(emp_status) as total_hired,
+sum(emp_status) as total_left,
+100 * sum(emp_status) / count(emp_status) as turnover_percentage
+from (
+select hire_date, 
+termdate,
+year(hire_date) as year_hired,
+year(termdate) as year_terminated,
+case when year(termdate) is not null and year(termdate) <= year(GETDATE()) then 1 else 0 end as emp_status
+from [Human Resources]
+) tbl
+group by year_hired
+order by year_hired 
+
+--Tenure distribution across departments
+select department, avg(datediff(day,hire_date,termdate) / 365) as avg_tenure
+from [Human Resources]
+group by department
